@@ -44,7 +44,6 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.HttpAuthHandler;
 import android.webkit.JavascriptInterface;
-import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -69,9 +68,6 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.preference.PreferenceManager;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -231,36 +227,21 @@ public class MainActivity extends AppCompatActivity {
     private void navigateToSettingsActivity() {
         Utils.debug("Navigate to settings");
         if (!SettingsActivity.isVisible()) {
-            if (KioskMode.isEnabled(sharedPreferences)) {
-                KioskMode.askPin(this, sharedPreferences, this::openSettingsActivity);
-            } else {
-                openSettingsActivity();
-            }
-        }
-    }
-
-    private void openSettingsActivity() {
-        if (!SettingsActivity.isVisible()) {
             stopDisconnectTimer();
             settingsShown = true;
             startActivity(new Intent(this, SettingsActivity.class));
         }
     }
 
-    private String getBaseUrl() {
-        Discovery.Server server = new Discovery.Server(sharedPreferences.getString(SettingsActivity.SERVER_PREF_KEY,null));
-        return Utils.isEmpty(server.ip) ? "" : ("http://" + server.ip + ":" + server.port + "/material/");
-    }
-
     private String getConfiguredUrl() {
-        String baseUrl = getBaseUrl();
-        if (Utils.isEmpty(baseUrl)) {
+        Discovery.Server server = new Discovery.Server(sharedPreferences.getString(SettingsActivity.SERVER_PREF_KEY,null));
+        String defaultPlayer = sharedPreferences.getString(SettingsActivity.DEFAULT_PLAYER_PREF_KEY, null);
+        if (server.ip == null || server.ip.isEmpty()) {
             return null;
         }
 
         try {
-            String defaultPlayer = sharedPreferences.getString(SettingsActivity.DEFAULT_PLAYER_PREF_KEY, null);
-            Uri.Builder builder = Uri.parse(baseUrl).buildUpon();
+            Uri.Builder builder = Uri.parse("http://" + server.ip + ":" + server.port + "/material/").buildUpon();
             if (defaultPlayer!=null && !defaultPlayer.isEmpty()) {
                 builder.appendQueryParameter("player", defaultPlayer);
                 if (sharedPreferences.getBoolean(SettingsActivity.SINGLE_PLAYER_PREF_KEY, false)) {
@@ -273,7 +254,6 @@ public class MainActivity extends AppCompatActivity {
             builder.appendQueryParameter("nativeConnectionStatus", "1");
             builder.appendQueryParameter("nativeNpShareC", "1");
             builder.appendQueryParameter("nativeNpShareS", "1");
-            builder.appendQueryParameter("nativeUiChanges", "1");
             builder.appendQueryParameter("dontTrapBack", "1");
             if (sharedPreferences.getBoolean(SettingsActivity.PLAYER_START_MENU_ITEM_PREF_KEY, false)) {
                 builder.appendQueryParameter("nativePlayerPower", "1");
@@ -382,6 +362,10 @@ public class MainActivity extends AppCompatActivity {
             editor.putBoolean(SettingsActivity.HARDWARE_VOLUME_PREF_KEY, true);
             modified=true;
         }
+        if (!sharedPreferences.contains(SettingsActivity.SWAP_VOLUME_LANDSCAPE_PREF_KEY)) {
+            editor.putBoolean(SettingsActivity.SWAP_VOLUME_LANDSCAPE_PREF_KEY, false);
+            modified=true;
+        }
         if (!sharedPreferences.contains(SettingsActivity.AUTO_START_PLAYER_APP_PREF_KEY)) {
             editor.putBoolean(SettingsActivity.AUTO_START_PLAYER_APP_PREF_KEY, false);
             modified=true;
@@ -429,15 +413,21 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (interceptVolume) {
+            boolean isLandscape = getResources().getConfiguration().orientation
+                    == Configuration.ORIENTATION_LANDSCAPE;
+            boolean swap = isLandscape
+                    && sharedPreferences.getBoolean(SettingsActivity.SWAP_VOLUME_LANDSCAPE_PREF_KEY, false);
             switch (keyCode) {
                 case KeyEvent.KEYCODE_VOLUME_UP:
                     if (0 == (event.getRepeatCount() % 2)) {
-                        webView.evaluateJavascript("incrementVolume()", null);
+                        webView.evaluateJavascript(
+                                swap ? "decrementVolume()" : "incrementVolume()", null);
                     }
                     return true;
                 case KeyEvent.KEYCODE_VOLUME_DOWN:
                     if (0 == (event.getRepeatCount() % 2)) {
-                        webView.evaluateJavascript("decrementVolume()", null);
+                        webView.evaluateJavascript(
+                                swap ? "incrementVolume()" : "decrementVolume()", null);
                     }
                     return true;
             }
@@ -596,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String u, Bitmap favicon) {
                 Utils.debug(u);
-                if (u.startsWith(getBaseUrl())) {
+                if (u.equals(url)) {
                     pageLoadHandler.removeCallbacks(pageLoadTimeout);
                     firstAuthReq=true;
                 }
@@ -608,15 +598,9 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                readVolumeStep();
-            }
-
-            @Override
             public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
                 Utils.debug(request.getUrl() + ", mf:" + request.isForMainFrame() + ", sc:" + errorResponse.getStatusCode());
-                if (request.isForMainFrame() && 404== errorResponse.getStatusCode() && request.getUrl().toString().startsWith(getBaseUrl())) {
+                if (request.isForMainFrame() && 404== errorResponse.getStatusCode() && request.getUrl().toString().equals(getConfiguredUrl())) {
                     pageError = true;
                     //discoverServer(false);
                     pageLoadHandler.removeCallbacks(pageLoadTimeout);
@@ -884,20 +868,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @JavascriptInterface
-    public void updateUiSettings(String settings) {
-        Utils.debug(settings);
-        try {
-            JSONObject json = new JSONObject(settings);
-            if (json.has("volumeStep")) {
-                ControlService.setVolumeStep(json.getInt("volumeStep"));
-            }
-        } catch (JSONException e) {
-            Utils.error("Failed to parse UI JSON", e);
-            readVolumeStep();
-        }
-    }
-
     ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     ScheduledFuture<?> disconnectHandler;
     private void startDisconnectTimer() {
@@ -990,24 +960,6 @@ public class MainActivity extends AppCompatActivity {
         webView.pauseTimers();
         super.onPause();
         isCurrentActivity = false;
-    }
-
-    private void readVolumeStep() {
-        webView.evaluateJavascript("javascript:localStorage.getItem('lms-material::volumeStep')", new ValueCallback<String>() {
-            @Override
-            public void onReceiveValue(String value) {
-                if (!Utils.isEmpty(value)) {
-                    Utils.debug("Vol step: " + value);
-                    try {
-                        int step = Integer.parseInt(value.replaceAll("\"", ""));
-                        if (step>=1 && step<=10) {
-                            ControlService.setVolumeStep(step);
-                        }
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-            }
-        });
     }
 
     private static boolean deleteDir(File path, Set<String> ignore) {
