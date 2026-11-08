@@ -49,6 +49,11 @@
             app:key="fullscreen"
             app:summary="@string/fullscreen_summary"
             app:title="@string/fullscreen" />
+        <SwitchPreferenceCompat
+            app:iconSpaceReserved="false"
+            app:key="swap_volume_landscape"
+            app:summary="@string/swap_volume_landscape_summary"
+            app:title="@string/swap_volume_landscape" />
         <ListPreference
             android:entries="@array/notifSize"
             android:entryValues="@array/notifSizeAlias"
@@ -158,10 +163,5 @@
             app:key="clear_cache"
             app:summary="@string/clear_cache_summary"
             app:title="@string/clear_cache" />
-        <Preference
-            app:iconSpaceReserved="false"
-            app:key="kiosk_mode"
-            app:summary="@string/kiosk_mode_summary"
-            app:title="@string/kiosk_mode" />
     </PreferenceCategory>
 </PreferenceScreen>
