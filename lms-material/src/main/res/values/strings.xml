@@ -68,18 +68,11 @@
     <string name="quitmenu_summary">Show a \'Quit\' entry in the main menu.</string>
     <string name="hardware_volume">Change device volume</string>
     <string name="hardware_volume_summary">When changing volume via device\'s volume keys then change the volume of the device, not the software player.</string>
+    <string name="swap_volume_landscape">Swap volume buttons in landscape</string>
+    <string name="swap_volume_landscape_summary">In landscape orientation, the physical button that is on top will decrease the volume, and the one on the bottom will increase it. Useful on tablets where the default behaviour feels reversed.</string>
     <string name="player_control_failed">\'%1\' is not installed!</string>
     <string name="failed">Failed!</string>
     <string name="added_to_clipboard">Added to clipboard.</string>
     <string name="share_now_playing">Share Now Playing</string>
     <string name="notif_size">Notification area size</string>
-    <string name="kiosk_mode">Kiosk mode</string>
-    <string name="kiosk_mode_summary">Require a PIN to open these settings. Applies to this device only.</string>
-    <string name="kiosk_mode_enabled_summary">Enabled. Tap to disable.</string>
-    <string name="kiosk_set_pin">Set kiosk PIN</string>
-    <string name="kiosk_repeat_pin">Repeat PIN</string>
-    <string name="kiosk_enter_pin">Enter kiosk PIN</string>
-    <string name="kiosk_wrong_pin">Wrong PIN</string>
-    <string name="kiosk_pin_too_short">PIN must be at least 4 digits</string>
-    <string name="kiosk_pin_mismatch">PINs do not match</string>
 </resources>
