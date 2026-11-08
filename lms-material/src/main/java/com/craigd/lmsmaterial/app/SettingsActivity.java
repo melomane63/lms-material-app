@@ -58,6 +58,7 @@ public class SettingsActivity extends AppCompatActivity {
     public static final String SINGLE_PLAYER_PREF_KEY ="single_player";
     public static final String PLAYER_APP_PREF_KEY = "player_app";
     public static final String HARDWARE_VOLUME_PREF_KEY = "hardware_volume";
+    public static final String SWAP_VOLUME_LANDSCAPE_PREF_KEY = "swap_volume_landscape";
     public static final String STOP_APP_PREF_KEY = "stop_app";
     public static final String AUTO_START_PLAYER_APP_PREF_KEY = "auto_start_player";
     public static final String PLAYER_START_MENU_ITEM_PREF_KEY = "menu_start_player";
@@ -342,24 +343,6 @@ public class SettingsActivity extends AppCompatActivity {
                 });
             }
 
-            final Preference kioskPref = getPreferenceManager().findPreference("kiosk_mode");
-            if (kioskPref != null) {
-                updateKioskSummary(kioskPref, sharedPreferences);
-                kioskPref.setOnPreferenceClickListener(arg0 -> {
-                    if (getContext() != null) {
-                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
-                        if (KioskMode.isEnabled(prefs)) {
-                            // Settings can only be open if the PIN was already entered
-                            KioskMode.disable(prefs);
-                            updateKioskSummary(kioskPref, prefs);
-                        } else {
-                            KioskMode.askNewPin(getContext(), prefs, () -> updateKioskSummary(kioskPref, prefs));
-                        }
-                    }
-                    return true;
-                });
-            }
-
             if (Utils.cutoutTopLeft(activity)) {
                 SwitchPreferenceCompat fullscreenPref = getPreferenceManager().findPreference(FULLSCREEN_PREF_KEY);
                 if (null != fullscreenPref) {
@@ -374,10 +357,6 @@ public class SettingsActivity extends AppCompatActivity {
             setAfterCallState();
             updateListSummary(PLAYER_APP_PREF_KEY);
             PreferenceManager.getDefaultSharedPreferences(getContext()).registerOnSharedPreferenceChangeListener(this);
-        }
-
-        private void updateKioskSummary(Preference pref, SharedPreferences prefs) {
-            pref.setSummary(KioskMode.isEnabled(prefs) ? R.string.kiosk_mode_enabled_summary : R.string.kiosk_mode_summary);
         }
 
         @Override
